@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gestión de Empleados</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Gestión de Empleados</h1>
+
+    <form id="empleadoForm" class="card">
+      <h2>Empleado</h2>
+      <input type="hidden" id="id_empleado" value="">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" name="nombre" type="text" required />
+        </div>
+        <div class="form-group">
+          <label for="apellido">Apellido</label>
+          <input id="apellido" name="apellido" type="text" required />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="identificacion">Identificación</label>
+          <input id="identificacion" name="identificacion" type="text" />
+        </div>
+        <div class="form-group">
+          <label for="cargo">Cargo</label>
+          <input id="cargo" name="cargo" type="text" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="salario">Salario</label>
+          <input id="salario" name="salario" type="number" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label for="fecha_ingreso">Fecha de ingreso</label>
+          <input id="fecha_ingreso" name="fecha_ingreso" type="date" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="id_cargo">ID Cargo</label>
+          <input id="id_cargo" name="id_cargo" type="number" />
+        </div>
+        <div class="form-group">
+          <label for="id_departamento">ID Departamento</label>
+          <input id="id_departamento" name="id_departamento" type="number" />
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button type="submit" id="guardarBtn">💾 Guardar</button>
+        <button type="button" id="limpiarBtn">🧹 Limpiar</button>
+      </div>
+      <div id="msg" class="msg" aria-live="polite"></div>
+    </form>
+
+    <section class="card">
+      <h2>Lista de Empleados</h2>
+      <table id="tablaEmpleados">
+        <thead>
+          <tr>
+            <th>ID</th><th>Nombre</th><th>Apellido</th><th>Identificación</th><th>Cargo</th><th>Salario</th><th>Ingreso</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const baseURL = '/api/empleados';
+      const form = document.getElementById('empleadoForm');
+      const tbody = document.querySelector('#tablaEmpleados tbody');
+      const guardarBtn = document.getElementById('guardarBtn');
+      const limpiarBtn = document.getElementById('limpiarBtn');
+      const msgEl = document.getElementById('msg');
+      const idInput = document.getElementById('id_empleado');
+
+      function showMsg(text, isError = false) {
+        msgEl.textContent = text;
+        msgEl.className = isError ? 'msg error' : 'msg success';
+        setTimeout(() => {
+          msgEl.textContent = '';
+          msgEl.className = 'msg';
+        }, 3500);
+      }
+
+      async function fetchJSON(url, options = {}) {
+        const res = await fetch(url, options);
+        if (!res.ok) {
+          // intenta leer mensaje del servidor
+          let errText = `(${res.status}) ${res.statusText}`;
+          try {
+            const j = await res.json();
+            if (j && j.error) errText = j.error + (j.detalle ? ' - ' + j.detalle : '');
+          } catch (_) {}
+          throw new Error(errText);
+        }
+        return res.status === 204 ? null : res.json();
+      }
+
+      async function cargarEmpleados() {
+        try {
+          const data = await fetchJSON(baseURL);
+          tbody.innerHTML = data.map(e => `
+            <tr>
+              <td>${e.id_empleado}</td>
+              <td>${escapeHtml(e.nombre)}</td>
+              <td>${escapeHtml(e.apellido ?? '')}</td>
+              <td>${escapeHtml(e.identificacion ?? '')}</td>
+              <td>${escapeHtml(e.cargo ?? '')}</td>
+              <td>${e.salario_base ?? e.salario ?? ''}</td>
+              <td>${(e.fecha_ingreso ? e.fecha_ingreso.split('T')[0] : '')}</td>
+              <td class="acciones">
+                <button class="edit" data-id="${e.id_empleado}">Editar</button>
+                <button class="del" data-id="${e.id_empleado}">Eliminar</button>
+              </td>
+            </tr>
+          `).join('');
+        } catch (err) {
+          showMsg('Error cargando empleados: ' + err.message, true);
+        }
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[s]);
+      }
+
+      async function guardarEmpleado(event) {
+        event.preventDefault();
+        guardarBtn.disabled = true;
+        guardarBtn.textContent = 'Procesando...';
+
+        const payload = {
+          nombre: document.getElementById('nombre').value.trim(),
+          apellido: document.getElementById('apellido').value.trim(),
+          identificacion: document.getElementById('identificacion').value.trim(),
+          cargo: document.getElementById('cargo').value.trim(),
+          salario: parseFloat(document.getElementById('salario').value) || 0,
+          fecha_ingreso: document.getElementById('fecha_ingreso').value || null,
+          id_cargo: parseInt(document.getElementById('id_cargo').value) || null,
+          id_departamento: parseInt(document.getElementById('id_departamento').value) || null
+        };
+
+        try {
+          if (!payload.nombre || !payload.apellido) {
+            throw new Error('Nombre y apellido son requeridos.');
+          }
+
+          if (idInput.value) {
+            // actualizar
+            await fetchJSON(`${baseURL}/${idInput.value}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            showMsg('Empleado actualizado');
+          } else {
+            const created = await fetchJSON(baseURL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            showMsg('Empleado creado (id: ' + (created?.id_empleado ?? 'n/a') + ')');
+          }
+
+          form.reset();
+          idInput.value = '';
+          guardarBtn.textContent = '💾 Guardar';
+          await cargarEmpleados();
+        } catch (err) {
+          showMsg(err.message, true);
+        } finally {
+          guardarBtn.disabled = false;
+          guardarBtn.textContent = idInput.value ? '💾 Actualizar' : '💾 Guardar';
+        }
+      }
+
+      // manejar editar / eliminar desde la tabla
+      tbody.addEventListener('click', async (ev) => {
+        const btn = ev.target;
+        if (btn.classList.contains('edit')) {
+          const id = btn.dataset.id;
+          try {
+            const emp = await fetchJSON(`${baseURL}/${id}`);
+            idInput.value = emp.id_empleado;
+            document.getElementById('nombre').value = emp.nombre || '';
+            document.getElementById('apellido').value = emp.apellido || '';
+            document.getElementById('identificacion').value = emp.identificacion || '';
+            document.getElementById('cargo').value = emp.cargo || '';
+            document.getElementById('salario').value = emp.salario_base ?? emp.salario ?? '';
+            document.getElementById('fecha_ingreso').value = emp.fecha_ingreso ? emp.fecha_ingreso.split('T')[0] : '';
+            document.getElementById('id_cargo').value = emp.id_cargo ?? '';
+            document.getElementById('id_departamento').value = emp.id_departamento ?? '';
+            guardarBtn.textContent = '💾 Actualizar';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } catch (err) {
+            showMsg('Error al obtener empleado: ' + err.message, true);
+          }
+        } else if (btn.classList.contains('del')) {
+          const id = btn.dataset.id;
+          if (!confirm('¿Eliminar empleado #' + id + '?')) return;
+          try {
+            await fetchJSON(`${baseURL}/${id}`, { method: 'DELETE' });
+            showMsg('Empleado eliminado');
+            cargarEmpleados();
+          } catch (err) {
+            showMsg('Error al eliminar: ' + err.message, true);
+          }
+        }
+      });
+
+      limpiarBtn.addEventListener('click', () => {
+        form.reset();
+        idInput.value = '';
+        guardarBtn.textContent = '💾 Guardar';
+      });
+
+      form.addEventListener('submit', guardarEmpleado);
+
+      // arranque
+      cargarEmpleados();
+    })();
+  </script>
+</body>
+</html>
