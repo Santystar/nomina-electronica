@@ -1,18 +1,23 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
-import empleadoRoutes from './routes/empleadoRoutes.js'; // nombre correcto del archivo
+import empleadoRoutes from './routes/empleadoRoutes.js';
+import departamentoRoutes from './routes/departamentoRoutes.js'; // 👈 Te faltaba esta línea
+import cors from 'cors';
 
 dotenv.config();
 const app = express();
 
 app.use(express.json());
 
-// ✅ Servir el frontend desde la carpeta "public"
-app.use(express.static('public'));
+// ✅ Configurar CORS
+app.use(cors({
+  origin: 'http://localhost:3001'
+}));
 
 // ✅ Rutas de la API
 app.use('/api/empleados', empleadoRoutes);
+app.use('/api/departamentos', departamentoRoutes);
 
 // ✅ Ruta de prueba para verificar la conexión con la base de datos
 app.get('/api/prueba', async (req, res) => {
