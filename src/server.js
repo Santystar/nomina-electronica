@@ -6,6 +6,7 @@ import departamentoRoutes from './routes/departamentoRoutes.js';
 import asistenciaRoutes from './routes/asistenciaRoutes.js';
 import cors from 'cors';
 import nominaRoutes from './routes/nominaRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -22,6 +23,7 @@ app.use('/api/empleados', empleadoRoutes);
 app.use('/api/departamentos', departamentoRoutes);
 app.use('/api/asistencia', asistenciaRoutes);
 app.use('/api/nomina', nominaRoutes);
+app.use('/api/auth', authRoutes);
 
 // ✅ Ruta de prueba para verificar la conexión con la base de datos
 app.get('/api/prueba', async (req, res) => {
