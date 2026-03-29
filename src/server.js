@@ -2,8 +2,10 @@ import express from 'express';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
 import empleadoRoutes from './routes/empleadoRoutes.js';
-import departamentoRoutes from './routes/departamentoRoutes.js'; // 👈 Te faltaba esta línea
+import departamentoRoutes from './routes/departamentoRoutes.js';
+import asistenciaRoutes from './routes/asistenciaRoutes.js';
 import cors from 'cors';
+import nominaRoutes from './routes/nominaRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -18,6 +20,8 @@ app.use(cors({
 // ✅ Rutas de la API
 app.use('/api/empleados', empleadoRoutes);
 app.use('/api/departamentos', departamentoRoutes);
+app.use('/api/asistencia', asistenciaRoutes);
+app.use('/api/nomina', nominaRoutes);
 
 // ✅ Ruta de prueba para verificar la conexión con la base de datos
 app.get('/api/prueba', async (req, res) => {
