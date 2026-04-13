@@ -1,5 +1,6 @@
 // src/controllers/empleadosController.js
 import pool from "../config/db.js";
+import bcrypt from "bcryptjs";
 
 //
 // 🧾 OBTENER TODOS LOS EMPLEADOS
@@ -56,6 +57,7 @@ export const obtenerEmpleadoPorId = async (req, res) => {
 //
 // 🧩 CREAR NUEVO EMPLEADO
 //
+
 export const crearEmpleado = async (req, res) => {
   try {
     console.log("📥 Datos recibidos para crear:", req.body);
@@ -71,18 +73,21 @@ export const crearEmpleado = async (req, res) => {
       id_departamento,
     } = req.body;
 
-    // Validación de campos obligatorios
     if (!nombre || !identificacion || !salario_base) {
-      return res.status(400).json({ error: "Faltan campos obligatorios" });
+      return res.status(400).json({
+        error: "Faltan campos obligatorios",
+      });
     }
 
-    // Inserción en la base de datos
+    // ==========================
+    // 1. CREAR EMPLEADO
+    // ==========================
     const [result] = await pool.query(
       `
-      INSERT INTO empleados 
-        (nombre, apellido, identificacion, cargo, salario_base, fecha_ingreso, id_cargo, id_departamento)
+      INSERT INTO empleados
+      (nombre, apellido, identificacion, cargo, salario_base, fecha_ingreso, id_cargo, id_departamento)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `,
+      `,
       [
         nombre,
         apellido || null,
@@ -95,15 +100,61 @@ export const crearEmpleado = async (req, res) => {
       ]
     );
 
-    console.log("✅ Empleado insertado correctamente:", result.insertId);
+    const idEmpleado = result.insertId;
+
+    // ==========================
+    // 2. GENERAR CORREO
+    // ==========================
+    const nombreLimpio = nombre
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    const correo = `${nombreLimpio}.${idEmpleado}@nomina.com`;
+
+    // ==========================
+    // 3. CONTRASEÑA TEMPORAL
+    // ==========================
+    const passwordTemporal = "Nomina123*";
+    const passwordHash = await bcrypt.hash(
+      passwordTemporal,
+      10
+    );
+
+    // ==========================
+    // 4. CREAR USUARIO
+    // ==========================
+    await pool.query(
+      `
+      INSERT INTO usuarios
+      (nombre, correo, password, rol)
+      VALUES (?, ?, ?, ?)
+      `,
+      [
+        `${nombre} ${apellido || ""}`.trim(),
+        correo,
+        passwordHash,
+        "empleado",
+      ]
+    );
 
     res.status(201).json({
-      mensaje: "Empleado creado correctamente",
-      id: result.insertId,
+      mensaje:
+        "Empleado y usuario creados correctamente",
+      id_empleado: idEmpleado,
+      correo_generado: correo,
+      password_temporal: passwordTemporal,
     });
   } catch (error) {
-    console.error("❌ Error al crear empleado:", error.message);
-    res.status(500).json({ error: "Error interno al crear empleado" });
+    console.error(
+      "❌ Error al crear empleado:",
+      error
+    );
+
+    res.status(500).json({
+      error: "Error interno al crear empleado",
+    });
   }
 };
 
