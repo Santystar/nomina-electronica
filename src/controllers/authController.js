@@ -46,61 +46,64 @@ const authController = {
     },
 
     login: async (req, res) => {
-        try {
-            const { correo, password } = req.body;
+    try {
+        const { correo, password } = req.body;
 
-            if (!correo || !password) {
-                return res.status(400).json({
-                    mensaje: 'Correo y contraseña son obligatorios'
-                });
-            }
-
-            const usuario = await Usuario.buscarPorCorreo(correo);
-
-            if (!usuario) {
-                return res.status(401).json({
-                    mensaje: 'Credenciales inválidas'
-                });
-            }
-
-            const passwordValido = await bcrypt.compare(password, usuario.password);
-
-            if (!passwordValido) {
-                return res.status(401).json({
-                    mensaje: 'Credenciales inválidas'
-                });
-            }
-
-            const token = jwt.sign(
-                {
-                    id_usuario: usuario.id_usuario,
-                    nombre: usuario.nombre,
-                    correo: usuario.correo,
-                    rol: usuario.rol
-                },
-                process.env.JWT_SECRET || 'clave_secreta_nomina',
-                { expiresIn: '2h' }
-            );
-
-            res.status(200).json({
-                mensaje: 'Login exitoso',
-                token,
-                usuario: {
-                    id_usuario: usuario.id_usuario,
-                    nombre: usuario.nombre,
-                    correo: usuario.correo,
-                    rol: usuario.rol
-                }
-            });
-
-        } catch (error) {
-            console.error('Error en login:', error);
-            res.status(500).json({
-                mensaje: 'Error al iniciar sesión',
-                error: error.message
+        if (!correo || !password) {
+            return res.status(400).json({
+                mensaje: 'Correo y contraseña son obligatorios'
             });
         }
+
+        const usuario = await Usuario.buscarPorCorreo(correo);
+
+        if (!usuario) {
+            return res.status(401).json({
+                mensaje: 'Credenciales inválidas'
+            });
+        }
+
+        const passwordValido = await bcrypt.compare(password, usuario.password);
+
+        if (!passwordValido) {
+            return res.status(401).json({
+                mensaje: 'Credenciales inválidas'
+            });
+        }
+
+        
+        const token = jwt.sign(
+            {
+                id_usuario: usuario.id_usuario,
+                id_empleado: usuario.id_empleado, // 👈 ESTA ES LA CLAVE
+                nombre: usuario.nombre,
+                correo: usuario.correo,
+                rol: usuario.rol
+            },
+            process.env.JWT_SECRET || 'clave_secreta_nomina',
+            { expiresIn: '2h' }
+        );
+
+        res.status(200).json({
+            mensaje: 'Login exitoso',
+            token,
+            usuario: {
+                id_usuario: usuario.id_usuario,
+                id_empleado: usuario.id_empleado, // 👈 también aquí
+                nombre: usuario.nombre,
+                correo: usuario.correo,
+                rol: usuario.rol
+            }
+        });
+
+    } catch (error) {
+        console.error('Error en login:', error);
+        res.status(500).json({
+            mensaje: 'Error al iniciar sesión',
+            error: error.message
+        });
     }
+}
 
 };
 
